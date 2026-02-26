@@ -1,0 +1,22 @@
+{
+    "manifest_version": 3,
+    "name": "OMC Friends",
+    "version": "1.0",
+    "permissions": [
+        "storage"
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://onlinemathcontest.com/*"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ]
+}
