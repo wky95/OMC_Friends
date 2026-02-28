@@ -355,7 +355,148 @@ function setupStandingsObserver() {
     );
 }
 
+// ── 8. User Profile Page — Add/Remove Friend Button ──────────────────────
+
+function getUsernameFromPath() {
+    const m = location.pathname.match(/^\/users\/([^\/]+)\/?$/);
+    return m ? m[1] : null;
+}
+
+function showToast(msg) {
+    const old = document.getElementById('omc-toast');
+    if (old) old.remove();
+    const toast = document.createElement('div');
+    toast.id = 'omc-toast';
+    toast.style.cssText = [
+        'position:fixed',
+        'bottom:24px',
+        'right:24px',
+        'background:#333',
+        'color:#fff',
+        'padding:10px 18px',
+        'border-radius:8px',
+        'font-size:14px',
+        'font-family:sans-serif',
+        'box-shadow:0 4px 16px rgba(0,0,0,.3)',
+        'z-index:99999',
+        'opacity:1',
+        'transition:opacity .4s',
+    ].join(';');
+    toast.innerText = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 500);
+    }, 2500);
+}
+
+async function injectProfileFriendButton(profileUsername) {
+    if (document.getElementById('omc-add-friend-btn')) return;
+    const cleanName = clean(profileUsername);
+
+    const btn = document.createElement('button');
+    btn.id = 'omc-add-friend-btn';
+    btn.style.cssText = [
+        'display:inline-flex',
+        'align-items:center',
+        'gap:6px',
+        'margin:12px 0',
+        'padding:9px 20px',
+        'border:none',
+        'border-radius:24px',
+        'font-size:14px',
+        'font-weight:700',
+        'cursor:pointer',
+        'color:#fff',
+        'box-shadow:0 3px 10px rgba(0,0,0,.18)',
+        'transition:transform .12s,box-shadow .12s',
+        'z-index:9999',
+    ].join(';');
+
+    btn.onmouseenter = () => {
+        btn.style.transform = 'scale(1.05)';
+        btn.style.boxShadow = '0 5px 18px rgba(0,0,0,.28)';
+    };
+    btn.onmouseleave = () => {
+        btn.style.transform = '';
+        btn.style.boxShadow = '0 3px 10px rgba(0,0,0,.18)';
+    };
+
+    async function refreshBtn() {
+        if (!chrome.runtime?.id) return;
+        const friends = await getFriends();
+        const isFriend = friends.includes(cleanName);
+        btn.innerHTML = isFriend ? '⭐&nbsp;Friend Added' : '☆&nbsp;Add as Friend';
+        btn.style.background = isFriend
+            ? 'linear-gradient(135deg,#f1c40f,#e67e22)'
+            : 'linear-gradient(135deg,#3498db,#2980b9)';
+    }
+
+    await refreshBtn();
+
+    btn.onclick = async () => {
+        if (!chrome.runtime?.id) return;
+        try {
+            const { omc_friends: list = [] } = await chrome.storage.local.get(['omc_friends']);
+            const cleaned = list.map(f => clean(f));
+            const isFriend = cleaned.includes(cleanName);
+            const newList = isFriend
+                ? list.filter(f => clean(f) !== cleanName)
+                : [...list, profileUsername];
+            await chrome.storage.local.set({ omc_friends: newList });
+            showToast(isFriend
+                ? `❌ Removed ${profileUsername} from friends`
+                : `⭐ Added ${profileUsername} as friend`);
+            await refreshBtn();
+        } catch { /* context invalidated */ }
+    };
+
+    // Insert button after the first <h1> or prominent heading on the page
+    const anchor = document.querySelector('h1, h2, .user-name, .profile-name');
+    if (anchor) {
+        const wrapper = document.createElement('div');
+        wrapper.id = 'omc-friend-btn-wrapper';
+        wrapper.style.cssText = 'margin:6px 0 10px 0;';
+        wrapper.appendChild(btn);
+        anchor.insertAdjacentElement('afterend', wrapper);
+    } else {
+        // Fallback: fixed top-right corner
+        btn.style.position = 'fixed';
+        btn.style.top = '15px';
+        btn.style.right = '20px';
+        document.body.appendChild(btn);
+    }
+}
+
+function initUserProfilePage() {
+    const profileUsername = getUsernameFromPath();
+    if (!profileUsername) return;
+
+    function tryInject() {
+        const anchor = document.querySelector('h1, h2, .user-name, .profile-name, main');
+        if (!anchor) return false;
+        injectProfileFriendButton(profileUsername);
+        return true;
+    }
+
+    if (!tryInject()) {
+        const obs = new MutationObserver(() => {
+            if (tryInject()) obs.disconnect();
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+    }
+}
+
+// ── 9. Entry point ────────────────────────────────────────────────────────
+
 function init() {
+    // User profile page: /users/:username
+    if (getUsernameFromPath()) {
+        initUserProfilePage();
+        return;
+    }
+
+    // Contest standings page
     const standings = document.querySelector('#standings');
     if (!standings) {
         // Wait for #standings to appear using a document-level observer
