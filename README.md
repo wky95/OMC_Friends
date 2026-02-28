@@ -8,8 +8,6 @@ A Chrome extension for [Online Math Contest (OMC)](https://onlinemathcontest.com
 
 - ⭐ **Star any user** directly from the standings table to add them as a friend
 - 👥 **Friends-Only Mode** — hide all other participants and show only your friends, sorted by rank
-- 🔍 **Automatic background fetch** — uses the OMC API to find friends across all pages instantly
-- 🎨 **Rating-color highlighting** — friend rows are highlighted; user links match OMC's official rating colors
 - 📋 **Manual friend list** — manage your friend list directly from the extension popup
 
 ---
@@ -59,24 +57,9 @@ OMC_Friends/
 
 ---
 
-## How It Works
-
-1. **`content.js`** injects into every `onlinemathcontest.com/*` page
-2. A `MutationObserver` waits for the `#standings` table to appear (works even in background tabs)
-3. In **normal mode**: friend rows are highlighted with a yellow border; ☆/⭐ buttons are added to every user link
-4. In **friends-only mode**:
-   - All original rows are hidden (`display: none`)
-   - A single API call to `/api/contests/{id}/standings` fetches the full leaderboard JSON
-   - Friend entries are injected as styled `<tr>` rows, sorted by rank
-   - Re-injection is skipped if nothing has changed (prevents flicker)
-5. Friend data is stored in `chrome.storage.local` and persists across sessions
-
----
-
 ## Requirements
 
-- Google Chrome (or any Chromium-based browser)
-- An account on [onlinemathcontest.com](https://onlinemathcontest.com)
+- Google Chrome (or any Chromium-based browser, e.g Brave)
 
 ---
 
